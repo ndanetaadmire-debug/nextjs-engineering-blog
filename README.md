@@ -1,27 +1,70 @@
-<<<<<<< HEAD
-This is a starter template for [Learn Next.js](https://nextjs.org/learn).
-=======
-# Next.js Production Blog
+# Engineering notes: a Next.js App Router blog
 
-A high-performance, SEO-optimized personal blog built with **Next.js** and **React**. This project serves as a practical implementation of modern frontend architecture, emphasizing static site generation (SSG), efficient data parsing, and scalable routing patterns.
+[![CI](https://github.com/ndanetaadmire-debug/nextjsp1/actions/workflows/ci.yml/badge.svg)](https://github.com/ndanetaadmire-debug/nextjsp1/actions/workflows/ci.yml)
 
-## Key Architectural Concepts Practiced
+A statically generated blog on **Next.js 16 (App Router)**, React 19 and TypeScript. Posts are Markdown files in `posts/`. Each one is checked against a schema at build time, rendered through a sanitizing pipeline and published as static HTML, along with tags, an RSS feed, a sitemap and structured data.
 
-*   **Dynamic Routing:** Implemented robust file-system routing leveraging dynamic `[id]` segments to automatically generate unique paths for content.
-*   **Static Site Generation (SSG):** Utilized static data fetching methods to pre-render pages at build time, ensuring near-instant load times and optimal Core Web Vitals.
-*   **Structured Metadata Parsing:** Integrated `gray-matter` to parse YAML front-matter from local Markdown files, cleanly separating content metadata (tags, dates, titles) from body content.
-*   **Semantic HTML & Accessibility (a11y):** Built with clean, semantic markup to maximize SEO efficiency and ensure screen-reader accessibility.
+> **Version 2.** This started as my Learn Next.js course project: Pages Router, `getStaticProps`, plain JavaScript and a README with an unresolved merge conflict. Version 2 moves it to the App Router and treats content as untrusted input. The post [Moving this blog from the Pages Router to the App Router](posts/moving-to-the-app-router.md) walks through the changes. The v1 code is in the git history.
 
-## Tech Stack
+## Features
 
-*   **Framework:** Next.js (React)
-*   **Content Format:** Markdown (.md) with Front-Matter metadata
-*   **Parser:** `gray-matter`
-*   **Styling:** CSS Modules / Tailwind CSS *(choose your approach)*
+- **Fully static.** Every route is prerendered (`○`/`●` in `next build`). `dynamicParams = false` means an unknown slug is a 404, never a runtime file read.
+- **Validated content.** Zod checks the front matter (title, real calendar dates, description length, kebab-case tags, draft flag). A bad post fails CI with the file name and the field, instead of disappearing from the list without an error.
+- **Safe rendering.** `remark-parse → remark-rehype → rehype-sanitize → rehype-stringify`. Scripts, event handlers, iframes, inline styles and `javascript:` links are removed, and tests feed hostile Markdown through the real pipeline.
+- **No path traversal.** Slugs are limited to `a-z0-9-` and only looked up from the actual file list.
+- **SEO.** `generateMetadata` (titles, descriptions, canonical URLs, Open Graph), `sitemap.ts`, `robots.ts`, an RSS 2.0 route handler and `BlogPosting` JSON-LD escaped so it can't close its `<script>` tag.
+- **Drafts.** Visible in development, excluded from production builds, the feed and the sitemap.
+- **Accessible and lean.** Semantic HTML, skip link, dark mode via `prefers-color-scheme`, `next/image` for the avatar, and no client-side JavaScript beyond what Next.js ships.
+- **Security headers.** `X-Frame-Options`, `nosniff`, `Referrer-Policy` and `Permissions-Policy`, with `x-powered-by` turned off.
 
-## Getting Started
+## Structure
 
- **Clone the repository:**
+```
+app/                     routes (Server Components)
+  page.tsx               post list
+  posts/[slug]/page.tsx  post page: generateStaticParams, generateMetadata, JSON-LD
+  tags/, tags/[tag]/     tag index and tag pages
+  feed.xml/route.ts      RSS (force-static)
+  sitemap.ts, robots.ts
+src/content/
+  posts.ts               content layer: read, validate, sort, render
+  site.ts                site config, RSS builder, JSON-LD, formatting
+posts/                   Markdown posts
+scripts/check-content.ts validates every post and reports all problems
+test/                    Vitest: content layer, sanitizer, RSS and JSON-LD escaping
+```
+
+The content layer is plain TypeScript with no Next.js imports, so it's unit-tested directly against fixture posts, including a folder of deliberately broken ones.
+
+## Writing a post
+
+Create `posts/my-post.md`:
+
+```markdown
+---
+title: "My post"
+date: "2026-11-20"
+description: "One or two sentences shown in the list, the feed and search results."
+tags: [nextjs, testing]
+draft: true
+---
+Markdown here.
+```
+
+Run `npm run check:content` to validate it, and remove `draft: true` to publish.
+
+## Development
+
 ```bash
-   git clone [https://github.com/ndanetaadmire-debug/nextjs-blog.git](https://github.com/ndanetaadmire-debug/nextjs-blog.git)
->>>>>>> 7e0697385523ec8e375e5dc9e6d6c46558e8a2c8
+npm install
+npm run dev            # http://localhost:3000
+npm test               # 23 tests
+npm run typecheck
+npm run build          # static build
+```
+
+On Vercel the site URL comes from `VERCEL_PROJECT_PRODUCTION_URL` automatically; set `SITE_URL` to override it.
+
+## License
+
+MIT © Admire T. Ndaneta
